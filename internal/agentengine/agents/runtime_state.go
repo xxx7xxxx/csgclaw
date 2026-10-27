@@ -639,11 +639,11 @@ func (s *Controller) forceRemoveBox(ctx context.Context, rt sandbox.Runtime, idO
 }
 
 func ensureAgentProjectsRoot() (string, error) {
-	homeDir, err := os.UserHomeDir()
+	root, err := config.DefaultDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve host home dir: %w", err)
+		return "", fmt.Errorf("resolve application data dir: %w", err)
 	}
-	hostProjectsRoot := filepath.Join(homeDir, config.AppDirName, hostProjectsDir)
+	hostProjectsRoot := filepath.Join(root, hostProjectsDir)
 	if err := os.MkdirAll(hostProjectsRoot, 0o755); err != nil {
 		return "", fmt.Errorf("create host projects dir: %w", err)
 	}

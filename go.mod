@@ -52,6 +52,7 @@ require (
 
 require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
+	git-devops.opencsg.com/product/agentichub/agentx/sdk/go v0.0.0
 	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
@@ -93,3 +94,5 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+replace git-devops.opencsg.com/product/agentichub/agentx/sdk/go => ../agentx/sdk/go

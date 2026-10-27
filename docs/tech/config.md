@@ -57,6 +57,9 @@ Stored or explicitly requested efforts are never silently converted to another l
 
 `listen_addr` is the address that the local HTTP server binds to.
 
+For isolated development instances, `CSGCLAW_DATA_DIR` overrides the default application data directory.
+Use a separate config file inside that directory as well; changing only the port or `--config` does not isolate every state store.
+
 `advertise_base_url` is the base URL that CSGClaw gives to manager and worker boxes so they can call back into the local HTTP server. When it is set, CSGClaw uses it as-is after trimming a trailing slash and does not try to infer a host IP. When it is empty, CSGClaw falls back to an inferred local IPv4 address plus the configured listen port.
 
 Use `advertise_base_url` when the automatically inferred address is not reachable from BoxLite boxes, such as when you need a LAN address, a tunnel URL, or a host alias.

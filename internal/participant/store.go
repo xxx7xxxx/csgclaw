@@ -270,8 +270,7 @@ func (s *Store) pathLooksLikeRootState() bool {
 }
 
 func (s *Store) pathIsDefaultRootStatePath() bool {
-	path := strings.TrimSpace(s.path)
-	return filepath.Base(path) == config.StateFileName && filepath.Base(filepath.Dir(path)) == config.AppDirName
+	return config.IsApplicationStatePath(s.path)
 }
 
 func participantRootSectionExists(path string) bool {

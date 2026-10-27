@@ -381,6 +381,9 @@ func ResolveAdvertiseBaseURL(server ServerConfig) string {
 }
 
 func DefaultDir() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("CSGCLAW_DATA_DIR")); root != "" {
+		return filepath.Abs(root)
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("resolve home dir: %w", err)
@@ -402,6 +405,24 @@ func DefaultStatePath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, StateFileName), nil
+}
+
+// IsApplicationStatePath recognizes the shared application store, including an
+// explicitly configured data root whose directory name is not .csgclaw.
+func IsApplicationStatePath(path string) bool {
+	path = strings.TrimSpace(path)
+	if filepath.Base(path) != StateFileName {
+		return false
+	}
+	if filepath.Base(filepath.Dir(path)) == AppDirName {
+		return true
+	}
+	configured, err := DefaultStatePath()
+	if err != nil {
+		return false
+	}
+	absolute, err := filepath.Abs(path)
+	return err == nil && absolute == configured
 }
 
 func DefaultDomainDir(name string) (string, error) {

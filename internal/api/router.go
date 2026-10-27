@@ -12,6 +12,7 @@ func (h *Handler) Routes() chi.Router {
 	router.Use(h.authorizeAppPlatformRequests)
 	h.registerCoreRoutes(router)
 	h.registerChannelRoutes(router)
+	h.registerAgentXDevRoutes(router)
 	return router
 }
 

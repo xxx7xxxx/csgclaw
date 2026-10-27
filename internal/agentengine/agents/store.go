@@ -659,8 +659,7 @@ func (s *Repository) stateLooksLikeRootState() bool {
 }
 
 func (s *Repository) stateIsDefaultRootStatePath() bool {
-	path := strings.TrimSpace(s.state)
-	return filepath.Base(path) == config.StateFileName && filepath.Base(filepath.Dir(path)) == config.AppDirName
+	return config.IsApplicationStatePath(s.state)
 }
 
 func applyRuntimeRecordToAgent(a Agent, rt RuntimeRecord) Agent {
