@@ -1,10 +1,10 @@
 (() => {
   const $ = (id) => document.getElementById(id);
-  const base = "/api/v1/agentx-dev";
+  const base = "/api/v1/csgrelay-dev";
   let selected = null, agents = [], bindings = [], active = null, previous = null, busy = false;
-  // Optional local personal-server credential, never the AgentX token.
-  const localToken = sessionStorage.getItem("agentx.localToken") || "";
-  $("save-token").onclick = () => { sessionStorage.setItem("agentx.localToken", $("local-token").value); location.reload(); };
+  // Optional local personal-server credential, never the CSGRelay token.
+  const localToken = sessionStorage.getItem("csgrelay.localToken") || "";
+  $("save-token").onclick = () => { sessionStorage.setItem("csgrelay.localToken", $("local-token").value); location.reload(); };
   const headers = () => ({ "Content-Type": "application/json", ...(localToken ? { Authorization: `Bearer ${localToken}` } : {}) });
   async function request(path, method = "GET", body, idempotency = false) {
     const h = headers();
@@ -65,7 +65,7 @@
   }
   $("send").onclick = async () => {
     if (!selected || !$("prompt").value.trim()) return;
-    busy = true; active = null; $("output").textContent = ""; $("trace").textContent = ""; notice("request-status", "正在经过 AgentX 派发请求…"); render();
+    busy = true; active = null; $("output").textContent = ""; $("trace").textContent = ""; notice("request-status", "正在经过 CSGRelay 派发请求…"); render();
     try {
       const payload = { model: selected, input: $("prompt").value, stream: $("stream").checked, ...(previous ? { previous_response_id: previous } : {}) };
       const r = await fetch(base + "/responses", { method: "POST", headers: { ...headers(), "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify(payload) });

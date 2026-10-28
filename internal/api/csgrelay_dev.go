@@ -20,36 +20,36 @@ import (
 
 	"csgclaw/internal/agentengine"
 	"csgclaw/internal/config"
-	"git-devops.opencsg.com/product/agentichub/agentx/sdk/go/worker"
+	"git-devops.opencsg.com/product/agentichub/csgrelay/sdk/go/worker"
 	"github.com/go-chi/chi/v5"
 )
 
 // This opt-in development adapter deliberately uses the public execution SDK.
 // It contains no NATS client and never calls another CSGClaw instance.
 //
-//go:embed agentx_dev.html agentx_dev.js
-var agentxDevAssets embed.FS
+//go:embed csgrelay_dev.html csgrelay_dev.js
+var csgrelayDevAssets embed.FS
 
-type agentxDevBinding struct {
+type csgrelayDevBinding struct {
 	RemoteID string `json:"remote_id"`
 	SourceID string `json:"source_id"`
 }
-type agentxDevAdapter struct {
+type csgrelayDevAdapter struct {
 	h                      *Handler
 	base, token, statePath string
 	ctx                    context.Context
 	cancel                 context.CancelFunc
 	mu                     sync.Mutex
-	bindings               map[string]agentxDevBinding
+	bindings               map[string]csgrelayDevBinding
 	workers                map[string]context.CancelFunc
 }
 
-func (h *Handler) registerAgentXDevRoutes(router chi.Router) {
-	if os.Getenv("CSGCLAW_AGENTX_DEV_PANEL") != "1" {
+func (h *Handler) registerCSGRelayDevRoutes(router chi.Router) {
+	if os.Getenv("CSGCLAW_CSGRELAY_DEV_PANEL") != "1" {
 		return
 	}
-	base := strings.TrimRight(os.Getenv("CSGCLAW_AGENTX_URL"), "/")
-	token := os.Getenv("CSGCLAW_AGENTX_TOKEN")
+	base := strings.TrimRight(os.Getenv("CSGCLAW_CSGRELAY_URL"), "/")
+	token := os.Getenv("CSGCLAW_CSGRELAY_TOKEN")
 	parsed, e := url.Parse(base)
 	if e != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || token == "" {
 		return
@@ -59,26 +59,26 @@ func (h *Handler) registerAgentXDevRoutes(router chi.Router) {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	d := &agentxDevAdapter{h: h, base: base, token: token, ctx: ctx, cancel: cancel, statePath: filepath.Join(root, "agentx-dev-bindings.json"), bindings: map[string]agentxDevBinding{}, workers: map[string]context.CancelFunc{}}
+	d := &csgrelayDevAdapter{h: h, base: base, token: token, ctx: ctx, cancel: cancel, statePath: filepath.Join(root, "csgrelay-dev-bindings.json"), bindings: map[string]csgrelayDevBinding{}, workers: map[string]context.CancelFunc{}}
 	if data, e := os.ReadFile(d.statePath); e == nil {
 		_ = json.Unmarshal(data, &d.bindings)
 	}
 	if h.eventStreamShutdown != nil {
 		go func() { <-h.eventStreamShutdown; cancel() }()
 	}
-	router.Get("/agentx-dev", func(w http.ResponseWriter, r *http.Request) {
+	router.Get("/csgrelay-dev", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		b, _ := agentxDevAssets.ReadFile("agentx_dev.html")
+		b, _ := csgrelayDevAssets.ReadFile("csgrelay_dev.html")
 		_, _ = w.Write(b)
 	})
-	router.Get("/agentx-dev/app.js", func(w http.ResponseWriter, r *http.Request) {
+	router.Get("/csgrelay-dev/app.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Header().Set("Cache-Control", "no-store")
-		b, _ := agentxDevAssets.ReadFile("agentx_dev.js")
+		b, _ := csgrelayDevAssets.ReadFile("csgrelay_dev.js")
 		_, _ = w.Write(b)
 	})
-	router.Route("/api/v1/agentx-dev", func(r chi.Router) {
+	router.Route("/api/v1/csgrelay-dev", func(r chi.Router) {
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if !h.validateServerAccessToken(r.Header.Get("Authorization")) {
@@ -90,12 +90,12 @@ func (h *Handler) registerAgentXDevRoutes(router chi.Router) {
 		})
 		r.Get("/info", func(w http.ResponseWriter, r *http.Request) {
 			d.mu.Lock()
-			bindings := []agentxDevBinding{}
+			bindings := []csgrelayDevBinding{}
 			for _, b := range d.bindings {
 				bindings = append(bindings, b)
 			}
 			d.mu.Unlock()
-			writeJSON(w, 200, map[string]any{"agentx_url": base, "local_origin": r.Host, "bindings": bindings})
+			writeJSON(w, 200, map[string]any{"csgrelay_url": base, "local_origin": r.Host, "bindings": bindings})
 		})
 		r.Get("/local-agents", func(w http.ResponseWriter, r *http.Request) {
 			agents, e := h.agentEngine.Agents().List(r.Context(), agentengine.AgentListOptions{})
@@ -153,7 +153,7 @@ func (h *Handler) registerAgentXDevRoutes(router chi.Router) {
 		d.start(binding)
 	}
 }
-func (d *agentxDevAdapter) request(ctx context.Context, method, path string, body io.Reader, key string) (*http.Response, error) {
+func (d *csgrelayDevAdapter) request(ctx context.Context, method, path string, body io.Reader, key string) (*http.Response, error) {
 	r, e := http.NewRequestWithContext(ctx, method, d.base+path, body)
 	if e != nil {
 		return nil, e
@@ -167,14 +167,14 @@ func (d *agentxDevAdapter) request(ctx context.Context, method, path string, bod
 	}
 	return (&http.Client{Timeout: 330 * time.Second}).Do(r)
 }
-func (d *agentxDevAdapter) proxy(w http.ResponseWriter, r *http.Request, path string) {
+func (d *csgrelayDevAdapter) proxy(w http.ResponseWriter, r *http.Request, path string) {
 	var body io.Reader
 	if r.Method != "GET" {
 		body = http.MaxBytesReader(w, r.Body, 1<<20)
 	}
 	response, e := d.request(r.Context(), r.Method, path, body, r.Header.Get("Idempotency-Key"))
 	if e != nil {
-		writeCodedAPIError(w, 502, "agentx_unavailable", "AgentX is unavailable")
+		writeCodedAPIError(w, 502, "csgrelay_unavailable", "CSGRelay is unavailable")
 		return
 	}
 	defer response.Body.Close()
@@ -200,7 +200,7 @@ func (d *agentxDevAdapter) proxy(w http.ResponseWriter, r *http.Request, path st
 		}
 	}
 }
-func (d *agentxDevAdapter) publish(w http.ResponseWriter, r *http.Request) {
+func (d *csgrelayDevAdapter) publish(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		AgentID    string `json:"agent_id"`
 		Name       string `json:"name"`
@@ -226,7 +226,7 @@ func (d *agentxDevAdapter) publish(w http.ResponseWriter, r *http.Request) {
 	body, _ := json.Marshal(map[string]any{"name": input.Name, "description": selected.Spec.Description, "visibility": input.Visibility, "executor": "csgclaw", "source_agent_id": selected.ID})
 	response, e := d.request(r.Context(), "POST", "/v1/agents", strings.NewReader(string(body)), r.Header.Get("Idempotency-Key"))
 	if e != nil {
-		writeCodedAPIError(w, 502, "agentx_unavailable", "AgentX is unavailable")
+		writeCodedAPIError(w, 502, "csgrelay_unavailable", "CSGRelay is unavailable")
 		return
 	}
 	defer response.Body.Close()
@@ -250,7 +250,7 @@ func (d *agentxDevAdapter) publish(w http.ResponseWriter, r *http.Request) {
 		writeCodedAPIError(w, 502, "invalid_response", "Invalid registration response")
 		return
 	}
-	binding := agentxDevBinding{RemoteID: record.Agent.ID, SourceID: selected.ID}
+	binding := csgrelayDevBinding{RemoteID: record.Agent.ID, SourceID: selected.ID}
 	d.mu.Lock()
 	d.bindings[binding.RemoteID] = binding
 	e = d.saveBindingsLocked()
@@ -264,7 +264,7 @@ func (d *agentxDevAdapter) publish(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(response.StatusCode)
 	_, _ = w.Write(data)
 }
-func (d *agentxDevAdapter) saveBindingsLocked() error {
+func (d *csgrelayDevAdapter) saveBindingsLocked() error {
 	if e := os.MkdirAll(filepath.Dir(d.statePath), 0700); e != nil {
 		return e
 	}
@@ -272,7 +272,7 @@ func (d *agentxDevAdapter) saveBindingsLocked() error {
 	if e != nil {
 		return e
 	}
-	f, e := os.CreateTemp(filepath.Dir(d.statePath), ".agentx-bindings-*")
+	f, e := os.CreateTemp(filepath.Dir(d.statePath), ".csgrelay-bindings-*")
 	if e != nil {
 		return e
 	}
@@ -292,7 +292,7 @@ func (d *agentxDevAdapter) saveBindingsLocked() error {
 	}
 	return os.Rename(f.Name(), d.statePath)
 }
-func (d *agentxDevAdapter) start(binding agentxDevBinding) {
+func (d *csgrelayDevAdapter) start(binding csgrelayDevBinding) {
 	d.mu.Lock()
 	if _, ok := d.workers[binding.RemoteID]; ok {
 		d.mu.Unlock()
@@ -311,7 +311,7 @@ func (d *agentxDevAdapter) start(binding agentxDevBinding) {
 		},
 		Execute: func(runCtx context.Context, session, input string, emit func(string) error) (string, error) {
 			digest := sha256.Sum256([]byte(binding.RemoteID + "\x00" + session))
-			sessionID := "agentx-" + hex.EncodeToString(digest[:])
+			sessionID := "csgrelay-" + hex.EncodeToString(digest[:])
 			stored, e := d.h.sessionBindings.GetOrCreate(binding.SourceID, sessionID)
 			if e != nil {
 				return "", e
@@ -320,14 +320,14 @@ func (d *agentxDevAdapter) start(binding agentxDevBinding) {
 			if turnID == "" {
 				return "", errors.New("missing relay response identity")
 			}
-			slog.Info("agentx execution", "phase", "start", "response_id", turnID, "remote_agent_id", binding.RemoteID, "source_agent_id", binding.SourceID)
+			slog.Info("csgrelay execution", "phase", "start", "response_id", turnID, "remote_agent_id", binding.RemoteID, "source_agent_id", binding.SourceID)
 			result := d.h.agentEngine.Conversations(binding.SourceID).Run(runCtx, agentengine.TurnRequest{ID: turnID, ConversationKey: agentengine.ConversationKey(stored.ConversationKey), Admission: agentengine.AdmissionRejectIfBusy, Interaction: agentengine.InteractionReject, Input: []agentengine.InputPart{{Kind: agentengine.InputPartText, Text: input}}}, agentengine.EventSinkFunc(func(_ context.Context, event agentengine.TurnEvent) error {
 				if event.Kind == agentengine.TurnEventTextDelta && event.Phase != "commentary" && !event.TextSnapshot {
 					return emit(event.Text)
 				}
 				return nil
 			}))
-			slog.Info("agentx execution", "phase", "end", "response_id", turnID, "remote_agent_id", binding.RemoteID, "source_agent_id", binding.SourceID, "status", result.Status, "dispatched", result.Dispatched)
+			slog.Info("csgrelay execution", "phase", "end", "response_id", turnID, "remote_agent_id", binding.RemoteID, "source_agent_id", binding.SourceID, "status", result.Status, "dispatched", result.Dispatched)
 			if result.Status != agentengine.TurnSucceeded {
 				if result.Error != nil {
 					return "", errors.New(result.Error.Message)
